@@ -1,0 +1,104 @@
+/* src/App.css */
+
+/* Global Styles */
+body,
+html,
+#root {
+  height: 100%;
+  margin: 0;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  background-color: #121212; /* Dark background */
+  color: #e0e0e0;
+}
+
+/* Main container */
+.app-container {
+  display: flex;
+  height: 100%;
+}
+
+/* Toolbar styling */
+.toolbar {
+  width: 200px;
+  background-color: #1f1f1f;
+  border-right: 1px solid #333;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.toolbar h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #e0e0e0;
+}
+
+.tool-button {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #555;
+  background-color: #2a2a2a;
+  color: #e0e0e0;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.tool-button:hover {
+  background-color: #3a3a3a;
+}
+
+.tool-button.active {
+  background-color: #007bff;
+  border-color: #007bff;
+}
+
+/* Slider styling */
+.slider-group {
+  margin-top: 15px;
+  font-size: 14px;
+  color: #ccc;
+}
+
+.slider-group input[type="range"] {
+  width: 100%;
+  margin-top: 5px;
+}
+
+/* Grid styling */
+.grid {
+  flex-grow: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: auto;
+}
+
+.grid-row {
+  display: flex;
+  gap: 4px; /* Horizontal gap between cells */
+  margin-bottom: 4px; /* Vertical gap between rows */
+}
+
+.grid-cell {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #2a2a2a;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.grid-cell:hover {
+  background-color: #3a3a3a;
+}
+
+.viewport-arrow {
+  font-size: 0.7rem;
+  margin-left: 2px;
+  display: inline-block;
+}

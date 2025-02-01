@@ -1,0 +1,71 @@
+/* SimulationPlayback.css */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.simulation-modal {
+  background-color: #1f1f1f;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 90%;
+  max-height: 90%;
+  overflow: auto;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+  color: #e0e0e0;
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.grid-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.grid-cell {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #2a2a2a;
+}
+
+.cell-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.entity {
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.entity.dead {
+  color: #dc3545;
+}
+
+.viewport-arrow {
+  font-size: 0.7rem;
+  margin-left: 2px;
+  display: inline-block;
+}
