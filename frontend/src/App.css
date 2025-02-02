@@ -103,3 +103,120 @@ html,
   margin-left: 2px;
   display: inline-block;
 }
+
+
+/* Updated prompt container styles */
+.prompt-container {
+  position: fixed;
+  bottom: 0;
+  left: 200px;
+  width: calc(100vw - 200px);
+  padding: 20px;
+  background-color: #1f1f1f;
+  border-top: 1px solid #333;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.prompt-form {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+}
+
+.prompt-input {
+  flex-grow: 1;
+  padding: 12px;
+  font-size: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--input-bg);
+  color: var(--text-color);
+  outline: none;
+  flex: 1;
+  height: 100px;
+  /* Fixed height */
+  resize: none;
+  /* Allow vertical resizing */
+  overflow-y: auto;
+  /* Enable scrolling when content overflows */
+  white-space: pre-wrap;
+  /* Ensure text wraps to the next line */
+  word-wrap: break-word;
+
+}
+
+.prompt-input:focus {
+  border-color: var(--button-primary);
+}
+
+.submit-button {
+  margin: 0 32px;
+  padding: 12px 24px;
+  font-size: 16px;
+  background-color: var(--button-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.submit-button:hover {
+  background-color: var(--button-hover);
+}
+
+/* Update slider styles */
+  input[type="range"] {
+    background-color: var(--input-bg);
+  }
+
+  /* Update modal styles */
+  .modal-overlay {
+    background-color: rgba(0, 0, 0, 0.8);
+  }
+
+  .simulation-modal {
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border-color);
+  }
+
+  .loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-color);
+  }
+
+  .loading-spinner::after {
+    content: "";
+    width: 24px;
+    height: 24px;
+    border: 4px solid var(--text-color);
+    border-top: 4px solid var(--button-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .app-container.loading {
+    pointer-events: none;
+    opacity: 0.7;
+  }
+
+  .app-container.loading .prompt-container {
+    pointer-events: auto;
+    opacity: 1;
+  }
