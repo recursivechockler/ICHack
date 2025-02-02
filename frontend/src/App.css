@@ -15,6 +15,10 @@ html,
   font-style: normal;
 }
 
+.cqc {
+  color: #007bff;
+}
+
 /* Main container */
 .app-container {
   display: flex;
@@ -271,11 +275,10 @@ input[type="range"] {
   border-color: #28a745;
 }
 
-
 .route-line {
   stroke: #28a745;
   stroke-width: 2;
-  stroke-dasharray: 5,5;
+  stroke-dasharray: 5, 5;
   opacity: 70%;
   fill: none;
   pointer-events: none;
