@@ -34,6 +34,7 @@ function GetSimulation({ getGrid, onSimulationResult }) {
       }
       const data = await response.json();
       onSimulationResult(data);
+      console.log(data);
     } catch (err) {
       setError(err.message);
       console.error("Error running simulation:", err);

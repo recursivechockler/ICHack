@@ -46,9 +46,13 @@
   align-items: center;
   justify-content: center;
   background-color: #2a2a2a;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.1s ease, transform 0.1s ease;
+  font-size: 2rem;
 }
 
-.cell-content {
+/* .cell-content {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -62,10 +66,31 @@
 
 .entity.dead {
   color: #dc3545;
+} */
+
+.grid-cell:hover {
+  background-color: #3a3a3a;
+  transform: scale(0.95);
+}
+
+.grid-cell:active {
+  animation: bounce 0.3s;
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
 }
 
 .viewport-arrow {
-  font-size: 0.7rem;
-  margin-left: 2px;
-  display: inline-block;
+  font-size: 1.4rem;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }

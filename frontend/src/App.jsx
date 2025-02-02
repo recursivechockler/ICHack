@@ -153,7 +153,7 @@ function App() {
           className={`tool-button ${selectedTool === "player" ? "active" : ""}`}
           onClick={() => setSelectedTool("player")}
         >
-          Player
+          Attacker
         </button>
         <button
           className={`tool-button ${
@@ -333,15 +333,14 @@ function App() {
             ))}
           </div>
         ))}
+        <GetSimulation
+          getGrid={processGridState}
+          onSimulationResult={(result) => {
+            setSimulationData(result);
+            setShowSimulation(true);
+          }}
+        />
       </div>
-
-      <GetSimulation
-        getGrid={processGridState}
-        onSimulationResult={(result) => {
-          setSimulationData(result);
-          setShowSimulation(true);
-        }}
-      />
 
       {simulationData && showSimulation && (
         <div className="modal-overlay" onClick={() => setShowSimulation(false)}>
