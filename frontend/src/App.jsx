@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import GetSimulation from "./GetSimulation";
 import "./App.css";
 import SimulationPlayback from "./SimulationPlayBack";
@@ -23,6 +23,9 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [gptInputValue, setGptInputValue] = useState("");
   const [showHelp, setShowHelp] = useState(false);
+  const [routes, setRoutes] = useState({}); // Store routes for each player
+  const [activeRoutingPlayer, setActiveRoutingPlayer] = useState(null); // Track which player is being routed
+  const [lastClickedCell, setLastClickedCell] = useState(null); // Track last clicked cell for double-click detection
 
   // Simulation parameter states.
   const [attackerParams, setAttackerParams] = useState({
@@ -35,6 +38,122 @@ function App() {
     sound_radius: 4,
     reaction: 1.0,
   });
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const gridRef = useRef(null);
+
+  // Get cell center coordinates
+  const getCellCenter = (rowIndex, colIndex) => {
+    // Get the actual cell element
+    const gridElement = gridRef.current;
+    if (!gridElement) return { x: 0, y: 0 };
+  
+    // Find all grid cells
+    const cells = gridElement.querySelectorAll('.grid-cell');
+    const cellIndex = rowIndex * gridCols + colIndex;
+    const cell = cells[cellIndex];
+    
+    if (!cell) return { x: 0, y: 0 };
+  
+    // Get the cell's bounding rectangle
+    const cellRect = cell.getBoundingClientRect();
+    const gridRect = gridElement.getBoundingClientRect();
+  
+    // Calculate center position relative to the grid's top-left corner
+    // Add scroll offsets to account for any grid scrolling
+    return {
+      x: (cellRect.left - gridRect.left) + (cellRect.width / 2) + gridElement.scrollLeft + 200,
+      y: (cellRect.top - gridRect.top) + (cellRect.height / 2) + gridElement.scrollTop + 80
+    };
+  };
+
+  // Track mouse position relative to grid
+  const handleMouseMove = (e) => {
+    if (gridRef.current) {
+      const rect = gridRef.current.getBoundingClientRect();
+      setMousePosition({
+        x: e.clientX - rect.left + 200,
+        y: e.clientY - rect.top + 80
+      });
+    }
+  };
+
+  // Render route lines
+  const RouteLines = () => {
+    if (!activeRoutingPlayer && Object.keys(routes).length === 0) return null;
+
+    return (
+      <svg className="route-lines" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+        {/* Existing route lines */}
+        {Object.entries(routes).map(([playerPos, route]) => {
+          const [playerRow, playerCol] = playerPos.split('-').map(Number);
+          const playerCenter = getCellCenter(playerRow, playerCol);
+
+          return (
+            <g key={playerPos}>
+              {/* Line from player to first point */}
+              {route.length > 0 && (
+                <line
+                  x1={playerCenter.x}
+                  y1={playerCenter.y}
+                  x2={getCellCenter(route[0].row, route[0].col).x}
+                  y2={getCellCenter(route[0].row, route[0].col).y}
+                  className="route-line"
+                />
+              )}
+              {/* Lines between route points */}
+              {route.map((point, index) => {
+                if (index === route.length - 1) return null;
+                const start = getCellCenter(point.row, point.col);
+                const end = getCellCenter(route[index + 1].row, route[index + 1].col);
+                return (
+                  <line
+                    key={`${point.row}-${point.col}-${index}`}
+                    x1={start.x}
+                    y1={start.y}
+                    x2={end.x}
+                    y2={end.y}
+                    className="route-line"
+                  />
+                );
+              })}
+            </g>
+          );
+        })}
+
+        {/* Active routing line following cursor */}
+        {activeRoutingPlayer && (
+          <g>
+            {/* If no route points yet, draw from player to cursor */}
+            {(!routes[activeRoutingPlayer] || routes[activeRoutingPlayer].length === 0) && (
+              <line
+                x1={getCellCenter(...activeRoutingPlayer.split('-').map(Number)).x}
+                y1={getCellCenter(...activeRoutingPlayer.split('-').map(Number)).y}
+                x2={mousePosition.x}
+                y2={mousePosition.y}
+                className="route-line route-line-preview"
+              />
+            )}
+            {/* If there are route points, draw from last point to cursor */}
+            {routes[activeRoutingPlayer] && routes[activeRoutingPlayer].length > 0 && (
+              <line
+                x1={getCellCenter(
+                  routes[activeRoutingPlayer][routes[activeRoutingPlayer].length - 1].row,
+                  routes[activeRoutingPlayer][routes[activeRoutingPlayer].length - 1].col
+                ).x}
+                y1={getCellCenter(
+                  routes[activeRoutingPlayer][routes[activeRoutingPlayer].length - 1].row,
+                  routes[activeRoutingPlayer][routes[activeRoutingPlayer].length - 1].col
+                ).y}
+                x2={mousePosition.x}
+                y2={mousePosition.y}
+                className="route-line route-line-preview"
+              />
+            )}
+          </g>
+        )}
+      </svg>
+    );
+  };
 
   // Process grid: build a "clean" grid (walls as 1, free cells as 0)
   // and record the positions (and orientations) of agents.
@@ -65,12 +184,24 @@ function App() {
       }
       processedGrid.push(newRow);
     }
+
+    const routeParsed = {}
+    for (let key in routes) {
+      routeParsed[key] = routes[key].map(({ row, col }) => ({
+        coord: {
+          row, col
+        },
+        tickTime: 10
+      }))
+    }
+
     return {
       grid: processedGrid,
       attacker_positions,
       defender_positions,
       attacker_params: attackerParams,
       defender_params: defenderParams,
+      route_data: routeParsed
     };
   }
 
@@ -84,22 +215,59 @@ function App() {
   // - If the cell already contains an agent of the same type, rotate its orientation clockwise by 45°.
   // - If the selected tool is "eraser", remove the cell.
   const updateCell = (rowIndex, colIndex) => {
+    if (selectedTool === "router") {
+      const cellKey = `${rowIndex}-${colIndex}`;
+      const cell = grid[rowIndex][colIndex];
+
+      if (activeRoutingPlayer == null && cell && typeof cell === "object" && cell.type === "player") {
+        // Clicking on a player initiates routing for that player
+        setActiveRoutingPlayer(`${rowIndex}-${colIndex}`);
+        // Clear existing route for this player
+        setRoutes(prev => ({ ...prev, [`${rowIndex}-${colIndex}`]: [] }));
+        return;
+      }
+
+      if (activeRoutingPlayer) {
+        if (cellKey === lastClickedCell) {
+          // Double click on same cell exits routing mode
+          setActiveRoutingPlayer(null);
+          setLastClickedCell(null);
+        } else {
+          // Add new point to route
+          setRoutes(prev => ({
+            ...prev,
+            [activeRoutingPlayer]: [
+              ...(prev[activeRoutingPlayer] || []),
+              { row: rowIndex, col: colIndex }
+            ]
+          }));
+          setLastClickedCell(cellKey);
+        }
+      }
+      return;
+    }
+
     setGrid((prevGrid) => {
       const newGrid = prevGrid.map((row) => [...row]);
       const current = newGrid[rowIndex][colIndex];
       if (selectedTool === "eraser") {
+        // When erasing a player, also remove their route
+        if (current && current.type === "player") {
+          setRoutes(prev => {
+            const newRoutes = { ...prev };
+            delete newRoutes[`${rowIndex}-${colIndex}`];
+            return newRoutes;
+          });
+        }
         newGrid[rowIndex][colIndex] = null;
       } else if (
         current &&
         typeof current === "object" &&
         current.type === selectedTool
       ) {
-        // Rotate clockwise by 45 degrees.
-        current.orientation =
-          (current.orientation + Math.PI / 4) % (2 * Math.PI);
+        current.orientation = (current.orientation + Math.PI / 4) % (2 * Math.PI);
         newGrid[rowIndex][colIndex] = current;
       } else {
-        // Place a new agent object with starting orientation 0.
         newGrid[rowIndex][colIndex] = { type: selectedTool, orientation: 0 };
       }
       return newGrid;
@@ -124,31 +292,36 @@ function App() {
   }, []);
 
   // Render a cell’s content (agent icon plus an arrow indicating orientation)
-  const renderCellContent = (cellValue) => {
-    if (cellValue && typeof cellValue === "object") {
-      if (cellValue.type === "wall") return "🟦";
-      let baseEmoji = "";
-      if (cellValue.type === "player") {
-        baseEmoji = "👮";
-      } else if (cellValue.type === "defender") {
-        baseEmoji = "🦹";
-      }
-      const angleDeg = (cellValue.orientation * 180) / Math.PI;
-      return (
+  const renderCellContent = (cellValue, rowIndex, colIndex) => {
+    const cellContent = cellValue && typeof cellValue === "object" ? (
+      cellValue.type === "wall" ? (
+        "🟦"
+      ) : (
         <span>
-          {baseEmoji}
+          {cellValue.type === "player" ? "👮" : "🦹"}
           <span
             className="viewport-arrow"
-            style={{ transform: `rotate(${angleDeg}deg)` }}
+            style={{ transform: `rotate(${cellValue.orientation * 180 / Math.PI}deg)` }}
           >
             ➤
           </span>
         </span>
-      );
-    } else if (cellValue === "wall") {
-      return "⬛";
-    }
-    return "";
+      )
+    ) : (
+      cellValue === "wall" ? "⬛" : ""
+    );
+
+    // Add route point indicators
+    const isRoutePoint = Object.entries(routes).some(([playerPos, route]) =>
+      route.some(point => point.row === rowIndex && point.col === colIndex)
+    );
+
+    return (
+      <div className={`cell-content ${isRoutePoint ? 'route-point' : ''}`}>
+        {cellContent}
+        {isRoutePoint && <div className="route-indicator" />}
+      </div>
+    );
   };
   const handleClaudeCall = useCallback(
     async (input) => {
@@ -203,18 +376,9 @@ function App() {
               - grid is a 2D array of nullable objects, where null represents an empty space, the type "player" is a player, the type "defender" is a defender, the type "wall" is a wall and "orientation" is by default 0 and is radians
               - columns is the length of grid and rows is the length of the subarrays of grid
               
+              also - references to "attacker" by the user should be treated as references to "player"
+
               IT IS OF PARAMOUNT IMPORTANCE THAT YOU FOLLOW THE EXACT STRUCTURE GIVEN IN THIS MODEL, SACRIFICE WHATEVER IS NECESSARY TO ENSURE THAT YOUR RESPONSE FOLLOWS THE CORRECT JSON SHAPE`;
-
-        const encodedPrompt = encodeURIComponent(prompt);
-
-        // Make the GET request to your Flask endpoint
-        // const response = await fetch(`http://localhost:5000/ask-claude?prompt=${encodedPrompt}`, {
-        //   method: 'GET',
-        //   headers: {
-        //     'Accept': 'application/json',
-        //     'Content-Type': 'application/json'
-        //   },
-        // });
 
         const response = await fetch("http://127.0.0.1:5000/ask-claude", {
           method: "POST",
@@ -273,21 +437,22 @@ function App() {
       </div>
 
       {/* Main content */}
-      <div className="app-container">
+      <div className={`app-container ${isLoading ? 'loading' : ''}`}>
         <div className="toolbar">
           <h3>Tools</h3>
           <button
-            className={`tool-button ${
-              selectedTool === "player" ? "active" : ""
-            }`}
-            onClick={() => setSelectedTool("player")}
+            className={`tool-button ${selectedTool === "player" ? "active" : ""
+              }`}
+            onClick={() => {
+              setSelectedTool("player")
+              setActiveRoutingPlayer(null);
+            }}
           >
             Attacker
           </button>
           <button
-            className={`tool-button ${
-              selectedTool === "defender" ? "active" : ""
-            }`}
+            className={`tool-button ${selectedTool === "defender" ? "active" : ""
+              }`}
             onClick={() => setSelectedTool("defender")}
           >
             Defender
@@ -299,12 +464,21 @@ function App() {
             Wall
           </button>
           <button
-            className={`tool-button ${
-              selectedTool === "eraser" ? "active" : ""
-            }`}
+            className={`tool-button ${selectedTool === "eraser" ? "active" : ""
+              }`}
             onClick={() => setSelectedTool("eraser")}
           >
             Eraser
+          </button>
+
+          <button
+            className={`tool-button ${selectedTool === "router" ? "active" : ""}`}
+            onClick={() => {
+              setSelectedTool("router");
+              setActiveRoutingPlayer(null);
+            }}
+          >
+            Router
           </button>
 
           <div className="slider-group">
@@ -447,8 +621,11 @@ function App() {
 
         <div
           className="grid"
+          ref={gridRef}
           onMouseUp={() => setIsMouseDown(false)}
           onMouseLeave={() => setIsMouseDown(false)}
+          onMouseMove={handleMouseMove}
+          style={{ position: 'relative' }}
         >
           {grid.map((row, rowIndex) => (
             <div key={rowIndex} className="grid-row">
@@ -459,11 +636,12 @@ function App() {
                   onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
                   onMouseEnter={() => handleMouseEnter(rowIndex, colIndex)}
                 >
-                  {renderCellContent(cell)}
+                  {renderCellContent(cell, rowIndex, colIndex)}
                 </div>
               ))}
             </div>
           ))}
+
           <div className="getsim">
             <GetSimulation
               getGrid={processGridState}
@@ -474,6 +652,7 @@ function App() {
             />
           </div>
         </div>
+        <RouteLines />
 
         {simulationData && showSimulation && (
           <div

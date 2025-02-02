@@ -134,7 +134,7 @@ html,
 
 /* Updated prompt container styles */
 .prompt-container {
-  position: fixed;
+  position: relative;
   bottom: 10px; /* Lower down */
   left: 210px; /* Adjusted for smaller width */
   width: calc(100vw - 220px); /* Smaller width */
@@ -241,6 +241,68 @@ input[type="range"] {
 .app-container.loading .prompt-container {
   pointer-events: auto;
   opacity: 1;
+}
+
+.cell-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.route-point {
+  position: relative;
+}
+
+.route-indicator {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: #007bff;
+  border-radius: 50%;
+  bottom: 2px;
+  right: 2px;
+}
+
+.tool-button.router-active {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+
+.route-line {
+  stroke: #28a745;
+  stroke-width: 2;
+  stroke-dasharray: 5,5;
+  opacity: 70%;
+  fill: none;
+  pointer-events: none;
+  animation: dash-move 1s linear infinite;
+}
+
+@keyframes dash-move {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -10;
+  }
+}
+
+.route-line-preview {
+  stroke: rgba(40, 167, 69, 0.5);
+}
+.grid {
+  overflow: hidden; /* Change from 'auto' to 'hidden' to prevent scrollbars from affecting coordinates */
+}
+
+/* Update grid-cell to have consistent size */
+.grid-cell {
+  width: 30px;
+  height: 30px;
+  position: relative;
 }
 /* Navbar styles */
 .navbar {
