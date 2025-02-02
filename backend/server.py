@@ -51,6 +51,7 @@ def ask_claude():
         message = anthropic.messages.create(
             model="claude-3-5-sonnet-20241022",
             max_tokens=8192,
+            temperature=0.1,
             system="You are to take the role of a natural language parser, you should only respond to messages in JSON. under no circumstance should your replies not be able to be parsed into json",
             messages=[
                 {

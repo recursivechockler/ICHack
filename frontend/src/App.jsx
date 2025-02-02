@@ -243,7 +243,14 @@ function App() {
       console.error('Error querying Claude:', error);
       throw error;
     }
-  }, [])
+  }, [defenderParams, attackerParams, grid, gridCols, gridRows])
+
+  const handleSubmitForm = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    console.log("Prompt submitted:", gptInputValue);
+    handleClaudeCall(gptInputValue)
+  }
 
   return (
     <div className={`app-container ${isLoading ? 'loading' : ''}`}>
@@ -465,17 +472,18 @@ function App() {
             Processing prompt...
           </div>
         ) : (
-          <form className="prompt-form" onSubmit={async (e) => {
-            e.preventDefault();
-            setIsLoading(true);
-            console.log("Prompt submitted:", gptInputValue);
-            handleClaudeCall(gptInputValue)
-          }}>
+          <form className="prompt-form" onSubmit={handleSubmitForm}>
             <textarea
               type="text"
               className="prompt-input"
               value={gptInputValue}
               onChange={(e) => setGptInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();  // Prevent new line when Enter is pressed
+                  handleSubmitForm(e);      // Submit the form manually
+                }
+              }}
               placeholder="Describe changes you'd like to make..."
             />
             <button type="submit" className="submit-button">
