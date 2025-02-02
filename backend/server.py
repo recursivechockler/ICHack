@@ -38,9 +38,10 @@ def simulate_endpoint():
     result = simulation.run()
     return jsonify(result)
 
-@app.route("/ask-claude", methods=["GET"])
+@app.route("/ask-claude", methods=["POST"])
 def ask_claude():
-    prompt = request.args.get('prompt')
+    data = request.get_json(force=True)
+    prompt = data.get("prompt")
     
     if not prompt:
         return jsonify({"error": "No prompt provided"}), 400
@@ -48,9 +49,12 @@ def ask_claude():
     try:
         # Create a message to Claude
         message = anthropic.messages.create(
-            model="claude-3-sonnet-20240229",
-            max_tokens=1000,
-            messages=[{
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=8192,
+            temperature=0.1,
+            system="You are to take the role of a natural language parser, you should only respond to messages in JSON. under no circumstance should your replies not be able to be parsed into json",
+            messages=[
+                {
                 "role": "user",
                 "content": prompt
             }]
