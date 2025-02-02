@@ -3,8 +3,8 @@ import GetSimulation from "./GetSimulation";
 import "./App.css";
 import SimulationPlayback from "./SimulationPlayBack";
 
-const DEFAULT_ROWS = 10;
-const DEFAULT_COLS = 10;
+const DEFAULT_ROWS = 20;
+const DEFAULT_COLS = 20;
 
 function createEmptyGrid(rows, cols) {
   return Array.from({ length: rows }, () => Array(cols).fill(null));
@@ -32,17 +32,21 @@ function App() {
     reaction: 1.0,
   });
 
-  // Process grid to produce a clean grid and record positions & orientations.
+  // --- UPDATED processGridState ---
+  // This function now checks if a cell is a wall by testing both
+  // for the string "wall" or an object with type "wall".
   function processGridState() {
     const processedGrid = [];
     const attacker_positions = [];
     const defender_positions = [];
-
     for (let rowIndex = 0; rowIndex < grid.length; rowIndex++) {
       const newRow = [];
       for (let colIndex = 0; colIndex < grid[rowIndex].length; colIndex++) {
         const cell = grid[rowIndex][colIndex];
-        if (cell === "wall") {
+        if (
+          cell === "wall" ||
+          (cell && typeof cell === "object" && cell.type === "wall")
+        ) {
           newRow.push(1);
         } else {
           newRow.push(0);
@@ -66,12 +70,13 @@ function App() {
       defender_params: defenderParams,
     };
   }
+  // --- END UPDATED processGridState ---
 
   useEffect(() => {
     setGrid(createEmptyGrid(gridRows, gridCols));
   }, [gridRows, gridCols]);
 
-  // updateCell: if the cell already contains an agent of the same type, rotate its orientation clockwise by 45°
+  // updateCell remains the same
   const updateCell = (rowIndex, colIndex) => {
     setGrid((prevGrid) => {
       const newGrid = prevGrid.map((row) => [...row]);
@@ -112,15 +117,15 @@ function App() {
     return () => window.removeEventListener("mouseup", handleMouseUp);
   }, []);
 
-  // Updated renderCellContent: if a cell contains an agent (object), render the base emoji plus an arrow indicating orientation.
+  // renderCellContent remains essentially the same.
   const renderCellContent = (cellValue) => {
     if (cellValue && typeof cellValue === "object") {
-      if (cellValue.type === "wall") return "⬛";
+      if (cellValue.type === "wall") return "🟦";
       let baseEmoji = "";
       if (cellValue.type === "player") {
-        baseEmoji = "🙂";
+        baseEmoji = "👮";
       } else if (cellValue.type === "defender") {
-        baseEmoji = "😎";
+        baseEmoji = "🦹";
       }
       const angleDeg = (cellValue.orientation * 180) / Math.PI;
       return (
@@ -177,7 +182,7 @@ function App() {
             <input
               type="range"
               min="5"
-              max="20"
+              max="40"
               value={gridCols}
               onChange={(e) => setGridCols(Number(e.target.value))}
             />
@@ -189,7 +194,7 @@ function App() {
             <input
               type="range"
               min="5"
-              max="20"
+              max="40"
               value={gridRows}
               onChange={(e) => setGridRows(Number(e.target.value))}
             />
@@ -203,7 +208,7 @@ function App() {
             <input
               type="range"
               min="1"
-              max="10"
+              max="20"
               step="0.5"
               value={attackerParams.vision_range}
               onChange={(e) =>
@@ -221,7 +226,7 @@ function App() {
             <input
               type="range"
               min="1"
-              max="10"
+              max="20"
               step="0.5"
               value={attackerParams.sound_radius}
               onChange={(e) =>

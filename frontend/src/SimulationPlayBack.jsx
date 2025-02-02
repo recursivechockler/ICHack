@@ -37,7 +37,7 @@ const SimulationPlayback = ({ simulationData }) => {
   });
 
   const renderEntity = (entity, type) => {
-    const baseEmoji = entity.alive ? (type === "attacker" ? "🙂" : "😎") : "💀";
+    const baseEmoji = entity.alive ? (type === "attacker" ? "👮" : "🦹") : "💀";
     const angleDeg = (entity.orientation * 180) / Math.PI;
     return (
       <div
@@ -59,7 +59,7 @@ const SimulationPlayback = ({ simulationData }) => {
 
   const renderCellContent = (cell, row, col) => {
     if (mapData[row][col] === 1) {
-      return "⬛";
+      return "🟦";
     }
     return (
       <div className="cell-content">

@@ -1,11 +1,18 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from simulation import Simulation, Map, Strategy, DEFAULT_ATTACKER_PARAMS, DEFAULT_DEFENDER_PARAMS
+from anthropic import Anthropic
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
-# Enable CORS for all routes using flask_cors.
-CORS(app)  # This will add the appropriate CORS headers automatically
+# Initialize Anthropic client
+anthropic = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
 @app.route("/simulate", methods=["POST", "OPTIONS"])
 def simulate_endpoint():
@@ -31,6 +38,35 @@ def simulate_endpoint():
     result = simulation.run()
     return jsonify(result)
 
+@app.route("/ask-claude", methods=["GET"])
+def ask_claude():
+    prompt = request.args.get('prompt')
+    
+    if not prompt:
+        return jsonify({"error": "No prompt provided"}), 400
+    
+    try:
+        # Create a message to Claude
+        message = anthropic.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=1000,
+            messages=[{
+                "role": "user",
+                "content": prompt
+            }]
+        )
+        
+        # Extract the response content
+        response = message.content[0].text
+        
+        return jsonify({
+            "response": response
+        })
+    
+    except Exception as e:
+        return jsonify({
+            "error": str(e)
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
