@@ -3,6 +3,9 @@ import math
 import json
 import statistics
 
+# Global variable for the number of training episodes.
+NUM_EPISODES = 10
+
 # -------------------------
 # Helper: Bresenham Line Algorithm
 # -------------------------
@@ -103,6 +106,7 @@ class Agent:
         return math.sqrt(dx * dx + dy * dy)
 
     def line_of_sight_clear(self, other, game_map):
+        # Get all points along the line from self to other.
         line = bresenham_line(self.x, self.y, other.x, other.y)
         # Skip our own cell.
         for (cx, cy) in line[1:]:
@@ -209,18 +213,15 @@ class Attacker(RLAgent):
     def move_to(self, x, y):
         old_pos = self.position()
         super().move_to(x, y)
-        # If new cell, add a positive reward; if not, impose a penalty.
         if (x, y) not in self.visited:
             self.visited.add((x, y))
             self.score += 1
-        else:
-            # This penalty is not used directly here; it is applied in perform_action.
-            pass
 
     def perform_action(self, action, game_map, current_tick):
         """
-        Perform an action and return a reward. This version heavily penalizes
-        staying in previously visited cells. The penalty increases with time.
+        Perform an action and return a reward.
+        This version heavily penalizes staying in previously visited cells.
+        The penalty increases with the current tick.
         """
         dx, dy = 0, 0
         if action == "up":
@@ -234,21 +235,18 @@ class Attacker(RLAgent):
         new_x = self.x + dx
         new_y = self.y + dy
         if game_map.is_free(new_x, new_y):
-            # Compute Manhattan distance change from starting cell.
             old_dist = abs(self.x - self.starting_position[0]) + abs(self.y - self.starting_position[1])
             is_new = (new_x, new_y) not in self.visited
             self.move_to(new_x, new_y)
             new_dist = abs(self.x - self.starting_position[0]) + abs(self.y - self.starting_position[1])
             base_reward = new_dist - old_dist
-            # Apply bonus if exploring new cell; otherwise heavy penalty.
             if is_new:
                 reward = base_reward + 0.5
             else:
-                # Penalty factor increases with current_tick; you can adjust the scaling factor (here 0.05).
-                reward = base_reward - (5 + current_tick * 0.05)
+                # Heavily penalize non-exploration: penalty increases with time.
+                reward = base_reward - (5 + current_tick * 0.1)
             return reward
         else:
-            # If attempting to move into a wall, return a fixed negative reward.
             return -10
 
 class Defender(RLAgent):
@@ -282,7 +280,7 @@ class Defender(RLAgent):
             return -1
 
 # -------------------------
-# Simulation Class with Reinforcement Learning and Reset Capability
+# Simulation Class with RL Training over Multiple Episodes
 # -------------------------
 class Simulation:
     def __init__(self, game_map, attacker_strategy, defender_positions,
@@ -299,6 +297,7 @@ class Simulation:
         if defender_params is None:
             defender_params = DEFAULT_DEFENDER_PARAMS.copy()
 
+        # Create agents based on starting positions.
         attacker_positions = self.strategy.get_attacker_positions()
         for i, pos in enumerate(attacker_positions):
             if isinstance(pos, (list, tuple)) and len(pos) >= 2:
@@ -322,6 +321,9 @@ class Simulation:
             params["orientation"] = orientation
             self.defenders.append(Defender(id=i, x=x, y=y, params=params))
 
+        # Save the initial positions so we can reset without losing Q-values.
+        self.initial_attacker_positions = [(a.x, a.y) for a in self.attackers]
+        self.initial_defender_positions = [(d.x, d.y) for d in self.defenders]
         self.states = []
 
     def attackers_alive(self):
@@ -343,11 +345,27 @@ class Simulation:
             ]
         }
 
-    def run(self):
-        # Reset state for each run.
-        self.states = []
+    def reset_environment(self):
         self.tick = 0
+        self.states = []
+        # Reset attackers
+        for i, a in enumerate(self.attackers):
+            start = self.initial_attacker_positions[i]
+            a.x, a.y = start
+            a.alive = True
+            a.visited = {start}
+            a.score = 0
+            a.starting_position = start
+        # Reset defenders
+        for i, d in enumerate(self.defenders):
+            start = self.initial_defender_positions[i]
+            d.x, d.y = start
+            d.alive = True
+            d.starting_position = start
         self.states.append(self.get_state())
+
+    def run_episode(self):
+        self.reset_environment()
         while self.attackers_alive() and self.defenders_alive() and self.tick < self.max_ticks:
             self.tick += 1
             self.update()
@@ -355,6 +373,18 @@ class Simulation:
         outcome = {"attackers_win": not self.defenders_alive()}
         stats = Statistics(self.states, self.map)
         return {"map": self.map.grid, "states": self.states, "outcome": outcome, "stats": stats.stats()}
+
+    def run_training(self, num_episodes):
+        final_result = None
+        for ep in range(num_episodes):
+            final_result = self.run_episode()
+            # Optionally, print training progress:
+            # print(f"Episode {ep+1}/{num_episodes} complete; ticks: {self.tick}")
+        return final_result
+
+    # Add a run() method so that simulation.run() is available.
+    def run(self):
+        return self.run_training(NUM_EPISODES)
 
     def update(self):
         engaged_attackers = set()
@@ -398,11 +428,10 @@ class Simulation:
         for attacker in self.attackers:
             if not attacker.alive:
                 continue
-            # If any defender is in view, skip movement (engagement takes priority).
+            # Skip movement if any defender is visible.
             if any(attacker.can_see(d, self.map) for d in self.defenders if d.alive):
                 continue
             action = attacker.choose_action(epsilon=0.1)
-            # Pass current tick so that the penalty for not exploring can increase over time.
             reward = attacker.perform_action(action, self.map, self.tick)
             attacker.update_q(reward, alpha=0.1, gamma=0.9)
         for defender in self.defenders:
@@ -586,9 +615,9 @@ if __name__ == "__main__":
     game_map = Map(grid)
     attacker_strategy = Strategy(attacker_positions=[(2,0), (7,0), (0,2), (9,5), (2,9), (7,9)])
     defender_positions = [(3,7), (2,7), (8,6)]
-    simulation = Simulation(game_map, attacker_strategy, defender_positions,
-                            attacker_params=DEFAULT_ATTACKER_PARAMS,
-                            defender_params=DEFAULT_DEFENDER_PARAMS,
-                            max_ticks=1000)
-    result = simulation.run()
-    print(json.dumps(result, indent=2))
+    sim = Simulation(game_map, attacker_strategy, defender_positions,
+                     attacker_params=DEFAULT_ATTACKER_PARAMS,
+                     defender_params=DEFAULT_DEFENDER_PARAMS,
+                     max_ticks=1000)
+    final_result = sim.run()  # This now calls run_training(NUM_EPISODES) internally.
+    print(json.dumps(final_result, indent=2))

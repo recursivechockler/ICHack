@@ -1,10 +1,11 @@
+// src/App.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import GetSimulation from "./GetSimulation";
 import "./App.css";
 import SimulationPlayback from "./SimulationPlayBack";
 
-const DEFAULT_ROWS = 20;
-const DEFAULT_COLS = 20;
+const DEFAULT_ROWS = 15;
+const DEFAULT_COLS = 15;
 
 function createEmptyGrid(rows, cols) {
   return Array.from({ length: rows }, () => Array(cols).fill(null));
@@ -19,8 +20,9 @@ function App() {
   const [isMouseDown, setIsMouseDown] = useState(false);
   const [simulationData, setSimulationData] = useState(null);
   const [showSimulation, setShowSimulation] = useState(false);
-  const [gptInputValue, setGptInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [gptInputValue, setGptInputValue] = useState("");
+  const [showHelp, setShowHelp] = useState(false);
 
   // Simulation parameter states.
   const [attackerParams, setAttackerParams] = useState({
@@ -34,9 +36,8 @@ function App() {
     reaction: 1.0,
   });
 
-  // --- UPDATED processGridState ---
-  // This function now checks if a cell is a wall by testing both
-  // for the string "wall" or an object with type "wall".
+  // Process grid: build a "clean" grid (walls as 1, free cells as 0)
+  // and record the positions (and orientations) of agents.
   function processGridState() {
     const processedGrid = [];
     const attacker_positions = [];
@@ -55,7 +56,7 @@ function App() {
         }
         if (cell && typeof cell === "object") {
           if (cell.type === "player") {
-            // Record as [x, y, orientation]
+            // Record as [x, y, orientation] where x = col, y = row.
             attacker_positions.push([colIndex, rowIndex, cell.orientation]);
           } else if (cell.type === "defender") {
             defender_positions.push([colIndex, rowIndex, cell.orientation]);
@@ -72,13 +73,16 @@ function App() {
       defender_params: defenderParams,
     };
   }
-  // --- END UPDATED processGridState ---
 
   useEffect(() => {
     setGrid(createEmptyGrid(gridRows, gridCols));
   }, [gridRows, gridCols]);
 
-  // updateCell remains the same
+  // When the user clicks a cell:
+  // - If the cell is empty or of a different type, place a new agent (or wall)
+  //   with starting orientation 0.
+  // - If the cell already contains an agent of the same type, rotate its orientation clockwise by 45°.
+  // - If the selected tool is "eraser", remove the cell.
   const updateCell = (rowIndex, colIndex) => {
     setGrid((prevGrid) => {
       const newGrid = prevGrid.map((row) => [...row]);
@@ -119,7 +123,7 @@ function App() {
     return () => window.removeEventListener("mouseup", handleMouseUp);
   }, []);
 
-  // renderCellContent remains essentially the same.
+  // Render a cell’s content (agent icon plus an arrow indicating orientation)
   const renderCellContent = (cellValue) => {
     if (cellValue && typeof cellValue === "object") {
       if (cellValue.type === "wall") return "🟦";
@@ -146,11 +150,11 @@ function App() {
     }
     return "";
   };
-
-  const handleClaudeCall = useCallback(async (input) => {
-    try {
-      // Encode the prompt to handle special characters in URLs
-      const prompt = `
+  const handleClaudeCall = useCallback(
+    async (input) => {
+      try {
+        // Encode the prompt to handle special characters in URLs
+        const prompt = `
               the current json representation of our grid state looks like this:
               {
                 "attacker_params": {
@@ -167,12 +171,12 @@ function App() {
                 "rows": ${gridRows},
                 "grid": ${JSON.stringify(grid)}
               }
-
+  
               the user has specified the following changes they would like to be made:
               ${input}
               
               --- perform these changes but ensure your response is just a json object as outlined below
-
+  
               The JSON should have the following structure:
               {
                 "attacker_params": {
@@ -189,7 +193,7 @@ function App() {
                 "rows": number,
                 "grid": [[null, { "type": string, "orientation": 0 }, ...], [{ "type": string, "orientation": 0 }, null, ...], ...]
               }
-
+  
               --- you should attempt to maintain the infomation from the original setup of the grid, only adding the things the user specifies
               --- so for example, if there are lots of walls in the initial grid, and the user tells you to add players, then the output grid should keep the walls as they were before, but introduce new players as the user describes
               
@@ -199,277 +203,319 @@ function App() {
               - grid is a 2D array of nullable objects, where null represents an empty space, the type "player" is a player, the type "defender" is a defender, the type "wall" is a wall and "orientation" is by default 0 and is radians
               - columns is the length of grid and rows is the length of the subarrays of grid
               
-              IT IS OF PARAMOUNT IMPORTANCE THAT YOU FOLLOW THE EXACT STRUCTURE GIVEN IN THIS MODEL, SACRIFICE WHATEVER IS NECESSARY TO ENSURE THAT YOUR RESPONSE FOLLOWS THE CORRECT JSON SHAPE`
+              IT IS OF PARAMOUNT IMPORTANCE THAT YOU FOLLOW THE EXACT STRUCTURE GIVEN IN THIS MODEL, SACRIFICE WHATEVER IS NECESSARY TO ENSURE THAT YOUR RESPONSE FOLLOWS THE CORRECT JSON SHAPE`;
 
-      const encodedPrompt = encodeURIComponent(prompt);
+        const encodedPrompt = encodeURIComponent(prompt);
 
-      // Make the GET request to your Flask endpoint
-      // const response = await fetch(`http://localhost:5000/ask-claude?prompt=${encodedPrompt}`, {
-      //   method: 'GET',
-      //   headers: {
-      //     'Accept': 'application/json',
-      //     'Content-Type': 'application/json'
-      //   },
-      // });
+        // Make the GET request to your Flask endpoint
+        // const response = await fetch(`http://localhost:5000/ask-claude?prompt=${encodedPrompt}`, {
+        //   method: 'GET',
+        //   headers: {
+        //     'Accept': 'application/json',
+        //     'Content-Type': 'application/json'
+        //   },
+        // });
 
-      const response = await fetch("http://127.0.0.1:5000/ask-claude", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({prompt}),
-      });
+        const response = await fetch("http://127.0.0.1:5000/ask-claude", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
 
-      // Check if the response is OK
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get response from Claude');
+        // Check if the response is OK
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.error || "Failed to get response from Claude"
+          );
+        }
+
+        // Parse and return the response data
+        const data = await response.json();
+        console.log(data);
+        const gridState = JSON.parse(data.response);
+        console.log(gridState);
+
+        setGridCols(gridState.columns);
+        setGridRows(gridState.rows);
+        setGrid(gridState.grid);
+        setAttackerParams(gridState.attacker_params);
+        setDefenderParams(gridState.defender_params);
+
+        setGptInputValue("");
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error querying Claude:", error);
+        throw error;
       }
-
-      // Parse and return the response data
-      const data = await response.json();
-      console.log(data)
-      const gridState = JSON.parse(data.response)
-      console.log(gridState)
-
-      setGridCols(gridState.columns)
-      setGridRows(gridState.rows)
-      setGrid(gridState.grid)
-      setAttackerParams(gridState.attacker_params)
-      setDefenderParams(gridState.defender_params)
-
-      setGptInputValue("")
-      setIsLoading(false)
-
-    } catch (error) {
-      console.error('Error querying Claude:', error);
-      throw error;
-    }
-  }, [defenderParams, attackerParams, grid, gridCols, gridRows])
+    },
+    [defenderParams, attackerParams, grid, gridCols, gridRows]
+  );
 
   const handleSubmitForm = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     console.log("Prompt submitted:", gptInputValue);
-    handleClaudeCall(gptInputValue)
-  }
+    handleClaudeCall(gptInputValue);
+  };
 
   return (
-    <div className={`app-container ${isLoading ? 'loading' : ''}`}>
-      <div className="toolbar">
-        <h3>Tools</h3>
+    <div className="app-wrapper">
+      {/* Navbar */}
+      <div className="navbar">
+        <div className="navbar-title">simCQC</div>
         <button
-          className={`tool-button ${selectedTool === "player" ? "active" : ""}`}
-          onClick={() => setSelectedTool("player")}
+          className="navbar-help-button"
+          onClick={() => setShowHelp(true)}
         >
-          Attacker
+          ?
         </button>
-        <button
-          className={`tool-button ${selectedTool === "defender" ? "active" : ""
+      </div>
+
+      {/* Main content */}
+      <div className="app-container">
+        <div className="toolbar">
+          <h3>Tools</h3>
+          <button
+            className={`tool-button ${
+              selectedTool === "player" ? "active" : ""
             }`}
-          onClick={() => setSelectedTool("defender")}
-        >
-          Defender
-        </button>
-        <button
-          className={`tool-button ${selectedTool === "wall" ? "active" : ""}`}
-          onClick={() => setSelectedTool("wall")}
-        >
-          Wall
-        </button>
-        <button
-          className={`tool-button ${selectedTool === "eraser" ? "active" : ""}`}
-          onClick={() => setSelectedTool("eraser")}
-        >
-          Eraser
-        </button>
-
-        <div className="slider-group">
-          <label>
-            Columns: {gridCols}
-            <input
-              type="range"
-              min="5"
-              max="40"
-              value={gridCols}
-              onChange={(e) => setGridCols(Number(e.target.value))}
-            />
-          </label>
-        </div>
-        <div className="slider-group">
-          <label>
-            Rows: {gridRows}
-            <input
-              type="range"
-              min="5"
-              max="40"
-              value={gridRows}
-              onChange={(e) => setGridRows(Number(e.target.value))}
-            />
-          </label>
-        </div>
-        <hr />
-        <h4>Attacker Parameters</h4>
-        <div className="slider-group">
-          <label>
-            Vision Range: {attackerParams.vision_range}
-            <input
-              type="range"
-              min="1"
-              max="20"
-              step="0.5"
-              value={attackerParams.vision_range}
-              onChange={(e) =>
-                setAttackerParams((prev) => ({
-                  ...prev,
-                  vision_range: Number(e.target.value),
-                }))
-              }
-            />
-          </label>
-        </div>
-        <div className="slider-group">
-          <label>
-            Sound Radius: {attackerParams.sound_radius}
-            <input
-              type="range"
-              min="1"
-              max="20"
-              step="0.5"
-              value={attackerParams.sound_radius}
-              onChange={(e) =>
-                setAttackerParams((prev) => ({
-                  ...prev,
-                  sound_radius: Number(e.target.value),
-                }))
-              }
-            />
-          </label>
-        </div>
-        <div className="slider-group">
-          <label>
-            Reaction: {attackerParams.reaction}
-            <input
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={attackerParams.reaction}
-              onChange={(e) =>
-                setAttackerParams((prev) => ({
-                  ...prev,
-                  reaction: Number(e.target.value),
-                }))
-              }
-            />
-          </label>
-        </div>
-        <hr />
-        <h4>Defender Parameters</h4>
-        <div className="slider-group">
-          <label>
-            Vision Range: {defenderParams.vision_range}
-            <input
-              type="range"
-              min="1"
-              max="10"
-              step="0.5"
-              value={defenderParams.vision_range}
-              onChange={(e) =>
-                setDefenderParams((prev) => ({
-                  ...prev,
-                  vision_range: Number(e.target.value),
-                }))
-              }
-            />
-          </label>
-        </div>
-        <div className="slider-group">
-          <label>
-            Sound Radius: {defenderParams.sound_radius}
-            <input
-              type="range"
-              min="1"
-              max="10"
-              step="0.5"
-              value={defenderParams.sound_radius}
-              onChange={(e) =>
-                setDefenderParams((prev) => ({
-                  ...prev,
-                  sound_radius: Number(e.target.value),
-                }))
-              }
-            />
-          </label>
-        </div>
-        <div className="slider-group">
-          <label>
-            Reaction: {defenderParams.reaction}
-            <input
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={defenderParams.reaction}
-              onChange={(e) =>
-                setDefenderParams((prev) => ({
-                  ...prev,
-                  reaction: Number(e.target.value),
-                }))
-              }
-            />
-          </label>
-        </div>
-      </div>
-
-      <div
-        className="grid"
-        onMouseUp={() => setIsMouseDown(false)}
-        onMouseLeave={() => setIsMouseDown(false)}
-      >
-        {grid.map((row, rowIndex) => (
-          <div key={rowIndex} className="grid-row">
-            {row.map((cell, colIndex) => (
-              <div
-                key={colIndex}
-                className="grid-cell"
-                onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
-                onMouseEnter={() => handleMouseEnter(rowIndex, colIndex)}
-              >
-                {renderCellContent(cell)}
-              </div>
-            ))}
-          </div>
-        ))}
-        <GetSimulation
-          getGrid={processGridState}
-          onSimulationResult={(result) => {
-            setSimulationData(result);
-            setShowSimulation(true);
-          }}
-        />
-      </div>
-
-      {simulationData && showSimulation && (
-        <div className="modal-overlay" onClick={() => setShowSimulation(false)}>
-          <div
-            className="simulation-modal"
-            onClick={(e) => e.stopPropagation()}
+            onClick={() => setSelectedTool("player")}
           >
-            <SimulationPlayback simulationData={simulationData} />
-            <button
-              className="tool-button"
-              onClick={() => setShowSimulation(false)}
+            Attacker
+          </button>
+          <button
+            className={`tool-button ${
+              selectedTool === "defender" ? "active" : ""
+            }`}
+            onClick={() => setSelectedTool("defender")}
+          >
+            Defender
+          </button>
+          <button
+            className={`tool-button ${selectedTool === "wall" ? "active" : ""}`}
+            onClick={() => setSelectedTool("wall")}
+          >
+            Wall
+          </button>
+          <button
+            className={`tool-button ${
+              selectedTool === "eraser" ? "active" : ""
+            }`}
+            onClick={() => setSelectedTool("eraser")}
+          >
+            Eraser
+          </button>
+
+          <div className="slider-group">
+            <label>
+              Columns: {gridCols}
+              <input
+                type="range"
+                min="5"
+                max="20"
+                value={gridCols}
+                onChange={(e) => setGridCols(Number(e.target.value))}
+              />
+            </label>
+          </div>
+          <div className="slider-group">
+            <label>
+              Rows: {gridRows}
+              <input
+                type="range"
+                min="5"
+                max="20"
+                value={gridRows}
+                onChange={(e) => setGridRows(Number(e.target.value))}
+              />
+            </label>
+          </div>
+          <hr />
+          <h4>Attacker Parameters</h4>
+          <div className="slider-group">
+            <label>
+              Vision Range: {attackerParams.vision_range}
+              <input
+                type="range"
+                min="1"
+                max="20"
+                step="0.5"
+                value={attackerParams.vision_range}
+                onChange={(e) =>
+                  setAttackerParams((prev) => ({
+                    ...prev,
+                    vision_range: Number(e.target.value),
+                  }))
+                }
+              />
+            </label>
+          </div>
+          <div className="slider-group">
+            <label>
+              Sound Radius: {attackerParams.sound_radius}
+              <input
+                type="range"
+                min="1"
+                max="20"
+                step="0.5"
+                value={attackerParams.sound_radius}
+                onChange={(e) =>
+                  setAttackerParams((prev) => ({
+                    ...prev,
+                    sound_radius: Number(e.target.value),
+                  }))
+                }
+              />
+            </label>
+          </div>
+          <div className="slider-group">
+            <label>
+              Reaction: {attackerParams.reaction}
+              <input
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.1"
+                value={attackerParams.reaction}
+                onChange={(e) =>
+                  setAttackerParams((prev) => ({
+                    ...prev,
+                    reaction: Number(e.target.value),
+                  }))
+                }
+              />
+            </label>
+          </div>
+          <hr />
+          <h4>Defender Parameters</h4>
+          <div className="slider-group">
+            <label>
+              Vision Range: {defenderParams.vision_range}
+              <input
+                type="range"
+                min="1"
+                max="10"
+                step="0.5"
+                value={defenderParams.vision_range}
+                onChange={(e) =>
+                  setDefenderParams((prev) => ({
+                    ...prev,
+                    vision_range: Number(e.target.value),
+                  }))
+                }
+              />
+            </label>
+          </div>
+          <div className="slider-group">
+            <label>
+              Sound Radius: {defenderParams.sound_radius}
+              <input
+                type="range"
+                min="1"
+                max="10"
+                step="0.5"
+                value={defenderParams.sound_radius}
+                onChange={(e) =>
+                  setDefenderParams((prev) => ({
+                    ...prev,
+                    sound_radius: Number(e.target.value),
+                  }))
+                }
+              />
+            </label>
+          </div>
+          <div className="slider-group">
+            <label>
+              Reaction: {defenderParams.reaction}
+              <input
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.1"
+                value={defenderParams.reaction}
+                onChange={(e) =>
+                  setDefenderParams((prev) => ({
+                    ...prev,
+                    reaction: Number(e.target.value),
+                  }))
+                }
+              />
+            </label>
+          </div>
+        </div>
+
+        <div
+          className="grid"
+          onMouseUp={() => setIsMouseDown(false)}
+          onMouseLeave={() => setIsMouseDown(false)}
+        >
+          {grid.map((row, rowIndex) => (
+            <div key={rowIndex} className="grid-row">
+              {row.map((cell, colIndex) => (
+                <div
+                  key={colIndex}
+                  className="grid-cell"
+                  onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
+                  onMouseEnter={() => handleMouseEnter(rowIndex, colIndex)}
+                >
+                  {renderCellContent(cell)}
+                </div>
+              ))}
+            </div>
+          ))}
+          <div className="getsim">
+            <GetSimulation
+              getGrid={processGridState}
+              onSimulationResult={(result) => {
+                setSimulationData(result);
+                setShowSimulation(true);
+              }}
+            />
+          </div>
+        </div>
+
+        {simulationData && showSimulation && (
+          <div
+            className="modal-overlay"
+            onClick={() => setShowSimulation(false)}
+          >
+            <div
+              className="simulation-modal"
+              onClick={(e) => e.stopPropagation()}
             >
-              Close Simulation
+              <SimulationPlayback simulationData={simulationData} />
+              <button
+                className="tool-button"
+                onClick={() => setShowSimulation(false)}
+              >
+                Close Simulation
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showHelp && (
+        <div className="modal-overlay" onClick={() => setShowHelp(false)}>
+          <div className="help-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>About SimCQC</h3>
+            <p>
+              SimCQC is a simulation environment where you can design and run
+              custom scenarios. Use the tools on the left to place attackers,
+              defenders, and walls on the grid. Adjust agent parameters using
+              the sliders. Click on an agent to rotate its orientation. Once
+              ready, click “Get Simulation” to run the simulation.
+            </p>
+            <button className="tool-button" onClick={() => setShowHelp(false)}>
+              Close
             </button>
           </div>
         </div>
       )}
-
       <div className="prompt-container">
         {isLoading ? (
-          <div className="loading-spinner">
-            Processing prompt...
-          </div>
+          <div className="loading-spinner">Processing prompt...</div>
         ) : (
           <form className="prompt-form" onSubmit={handleSubmitForm}>
             <textarea
@@ -478,9 +524,9 @@ function App() {
               value={gptInputValue}
               onChange={(e) => setGptInputValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();  // Prevent new line when Enter is pressed
-                  handleSubmitForm(e);      // Submit the form manually
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault(); // Prevent new line when Enter is pressed
+                  handleSubmitForm(e); // Submit the form manually
                 }
               }}
               placeholder="Describe changes you'd like to make..."

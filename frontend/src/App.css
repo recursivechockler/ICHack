@@ -1,4 +1,5 @@
 /* src/App.css */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=Quantico:ital,wght@0,400;0,700;1,400;1,700&family=Ubuntu+Mono&display=swap");
 
 /* Global Styles */
 body,
@@ -6,10 +7,12 @@ html,
 #root {
   height: 100%;
   margin: 0;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   background-color: #121212; /* Dark background */
   color: #e0e0e0;
   user-select: none;
+  font-family: "Ubuntu Mono", serif;
+  font-weight: 400;
+  font-style: normal;
 }
 
 /* Main container */
@@ -66,6 +69,10 @@ html,
   margin-top: 5px;
 }
 
+.getsim {
+  margin-top: 20px;
+}
+
 /* Grid styling */
 .grid {
   flex-grow: 1;
@@ -73,7 +80,9 @@ html,
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center; /* Center content vertically */
   overflow: auto;
+  margin-left: 0; /* Remove negative margin to prevent overlap */
 }
 
 .grid-row {
@@ -123,14 +132,13 @@ html,
   transform: translate(-50%, -50%);
 }
 
-
 /* Updated prompt container styles */
 .prompt-container {
   position: fixed;
-  bottom: 0;
-  left: 200px;
-  width: calc(100vw - 200px);
-  padding: 20px;
+  bottom: 10px; /* Lower down */
+  left: 210px; /* Adjusted for smaller width */
+  width: calc(100vw - 220px); /* Smaller width */
+  padding: 10px; /* Smaller padding */
   background-color: #1f1f1f;
   border-top: 1px solid #333;
   display: flex;
@@ -147,24 +155,19 @@ html,
 
 .prompt-input {
   flex-grow: 1;
-  padding: 12px;
-  font-size: 16px;
+  padding: 8px; /* Smaller padding */
+  font-size: 14px; /* Smaller font size */
   border: 1px solid var(--border-color);
   border-radius: 4px;
   background-color: var(--input-bg);
   color: var(--text-color);
   outline: none;
   flex: 1;
-  height: 100px;
-  /* Fixed height */
+  height: 50px; /* Reduced height */
   resize: none;
-  /* Allow vertical resizing */
   overflow-y: auto;
-  /* Enable scrolling when content overflows */
   white-space: pre-wrap;
-  /* Ensure text wraps to the next line */
   word-wrap: break-word;
-
 }
 
 .prompt-input:focus {
@@ -188,54 +191,97 @@ html,
 }
 
 /* Update slider styles */
-  input[type="range"] {
-    background-color: var(--input-bg);
+input[type="range"] {
+  background-color: var(--input-bg);
+}
+
+/* Update modal styles */
+.modal-overlay {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.simulation-modal {
+  background-color: var(--bg-dark);
+  border: 1px solid var(--border-color);
+}
+
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-color);
+}
+
+.loading-spinner::after {
+  content: "";
+  width: 24px;
+  height: 24px;
+  border: 4px solid var(--text-color);
+  border-top: 4px solid var(--button-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
   }
 
-  /* Update modal styles */
-  .modal-overlay {
-    background-color: rgba(0, 0, 0, 0.8);
+  100% {
+    transform: rotate(360deg);
   }
+}
 
-  .simulation-modal {
-    background-color: var(--bg-dark);
-    border: 1px solid var(--border-color);
-  }
+.app-container.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
 
-  .loading-spinner {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    color: var(--text-color);
-  }
+.app-container.loading .prompt-container {
+  pointer-events: auto;
+  opacity: 1;
+}
+/* Navbar styles */
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50px;
+  background-color: #1f1f1f;
+  border-bottom: 1px solid #333;
+  position: relative;
+  width: 100%;
+}
 
-  .loading-spinner::after {
-    content: "";
-    width: 24px;
-    height: 24px;
-    border: 4px solid var(--text-color);
-    border-top: 4px solid var(--button-primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
+.navbar-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #e0e0e0;
+}
 
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
+.navbar-help-button {
+  position: absolute;
+  right: 20px;
+  background: none;
+  border: none;
+  color: #e0e0e0;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
 
-    100% {
-      transform: rotate(360deg);
-    }
-  }
+/* Help modal styles */
+.help-modal {
+  background-color: #1f1f1f;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
 
-  .app-container.loading {
-    pointer-events: none;
-    opacity: 0.7;
-  }
-
-  .app-container.loading .prompt-container {
-    pointer-events: auto;
-    opacity: 1;
-  }
+/* (Optional) Adjust modal overlay if needed */
+.modal-overlay {
+  background-color: rgba(0, 0, 0, 0.8);
+}

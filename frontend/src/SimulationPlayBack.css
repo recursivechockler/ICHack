@@ -94,3 +94,70 @@
   left: 50%;
   transform: translate(-50%, -50%);
 }
+
+/* --- Statistics Modal Styles --- */
+
+/* Container for the stats modal (inside the overlay) */
+.stats-modal-container {
+  background-color: #1f1f1f; /* Dark background */
+  border: 2px solid #444; /* Dark border */
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 400px;
+  width: 90%;
+  margin: 0 auto;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* The inner modal box (you may use this wrapper if needed) */
+.stats-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Modal title styling */
+.stats-modal h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #e0e0e0;
+  text-align: center;
+}
+
+/* Container for the statistics content */
+.stats-content {
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+/* Each row for a statistic */
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid #333;
+}
+
+/* Remove the border on the last row */
+.stats-row:last-child {
+  border-bottom: none;
+}
+
+/* Styling for the key (statistic name) */
+.stats-key {
+  font-weight: bold;
+  color: #ccc;
+}
+
+/* Styling for the value (statistic number) */
+.stats-value {
+  color: #e0e0e0;
+}
+
+/* Optional: Style the close button inside the modal to match your tool-buttons */
+.stats-modal .tool-button {
+  margin-top: 15px;
+  width: auto;
+  padding: 8px 12px;
+}
