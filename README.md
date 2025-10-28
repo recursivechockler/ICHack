@@ -1,3 +1,5 @@
+SimCQC: AI Simulation in Military Strategy (ICHack 2025 runner-up).
+
 My Contributions (all commits made from team lead's computer):
 
 - Implemented a statistics and analytics module for our CQC (close-quarters combat) simulation environment.
